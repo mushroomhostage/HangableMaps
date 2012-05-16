@@ -2,18 +2,25 @@ package net.minecraft.src;
 
 import java.util.List;
 import java.util.Map;
+import java.io.*;
 
-public class mod_HangableMaps extends BaseModMp
+import net.minecraft.src.forge.*;
+
+public class mod_HangableMaps extends NetworkMod implements IConnectionHandler, IPacketHandler
 {
     public static boolean shouldCenterMapsOnPlayer = false;
     public static int hangableMapNetID = 165;
     public static mod_HangableMaps instance;
+    public static final String channelName = "mod_HangMap";
+    public static final int packetTypeMapID = 1;
+    public static final int packetTypeMapData = 2;
+    public NetworkManager network = null;
 
     public mod_HangableMaps()
     {
         instance = this;
         ModLoader.registerEntityID(EntityHangableMap.class, "entityhangablemap", ModLoader.getUniqueEntityId());
-        ModLoaderMp.registerNetClientHandlerEntity(EntityHangableMap.class, hangableMapNetID);
+        MinecraftForge.registerEntity(EntityHangableMap.class, this, hangableMapNetID, 160, 5, false);
         List var1 = CraftingManager.getInstance().getRecipeList();
         ItemStack var4;
 
@@ -37,60 +44,117 @@ public class mod_HangableMaps extends BaseModMp
             ItemStack var5 = new ItemStack(Item.dyePowder, 1, 0);
             ModLoader.addRecipe(new ItemStack(Item.map, 2, var6), new Object[] {"IMC", "###", "###", '#', Item.paper, 'C', Item.compass, 'I', var5, 'M', var4});
         }
+
+        MinecraftForge.registerConnectionHandler(this);
     }
 
     public void requestMapData(int var1)
     {
-        Packet230ModLoader var2 = new Packet230ModLoader();
-        var2.packetType = 2;
-        var2.dataInt = new int[] {var1};
-        ModLoaderMp.sendPacket(this, var2);
-    }
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        DataOutputStream data = new DataOutputStream(bytes);
 
-    public void handlePacket(Packet230ModLoader var1)
-    {
-        if (var1.packetType == 1)
+        try
         {
-            int var2 = var1.dataInt[0];
-            int var3 = var1.dataInt[1];
-            WorldClient var4 = (WorldClient)ModLoader.getMinecraftInstance().theWorld;
-            EntityHangableMap var5 = (EntityHangableMap)var4.getEntityByID(var2);
-
-            if (var5 != null)
-            {
-                var5.setMapId(var3);
-                var5.setPosition((double)var1.dataFloat[0], (double)var1.dataFloat[1], (double)var1.dataFloat[2]);
-                var5.setRotation(var1.dataFloat[3], var1.dataFloat[4]);
-            }
+            data.writeByte(packetTypeMapData);
+            data.writeInt(var1);
+        }
+        catch(IOException e)
+        {
+            e.printStackTrace();
+            return;
         }
 
-        if (var1.packetType == 2)
+
+        Packet250CustomPayload packet = new Packet250CustomPayload();
+        packet.channel = channelName;
+        packet.data = bytes.toByteArray();
+        packet.length = packet.data.length;
+
+        MinecraftForge.sendPacket(network, packet);
+    }
+
+    @Override
+    public void onConnect(NetworkManager network)
+    {
+        this.network = network;
+    }
+
+    @Override
+    public void onLogin(NetworkManager network, Packet1Login login)
+    {
+        MessageManager.getInstance().registerChannel(network, this, channelName);
+    }
+
+    @Override
+    public void onDisconnect(NetworkManager network, String message, Object[] args)
+    {
+    }
+
+    @Override
+    public void onPacketData(NetworkManager network, String channel, byte[] bytes)
+    {
+        DataInputStream dataStream = new DataInputStream(new ByteArrayInputStream(bytes));
+
+        try 
         {
-            int[] var9 = var1.dataInt;
-            World var10 = ModLoader.getMinecraftInstance().theWorld;
-            ItemMap var11 = Item.map;
-            MapData var12 = ItemMap.getMPMapData((short)var9[0], var10);
-            int var6 = var9[1];
-            int var7 = 2;
+            byte packetType = dataStream.readByte();
 
-            for (int var8 = var6 * 128; var8 < var6 * 128 + 128; ++var8)
+            if (packetType == packetTypeMapID)
             {
-                var12.colors[var8] = (byte)var9[var7];
-                ++var7;
-            }
+                int entityID = dataStream.readInt();
+                int mapID = dataStream.readInt();
+                WorldClient var4 = (WorldClient)ModLoader.getMinecraftInstance().theWorld;
+                EntityHangableMap var5 = (EntityHangableMap)var4.getEntityByID(entityID);
 
-            short var13 = 132;
-
-            if (var9[131] == 1)
-            {
-                if (var6 == 0)
+                if (var5 != null)
                 {
-                    var12.playersVisibleOnMap.clear();
+                    var5.setMapId(mapID);
+                    double x = (double)dataStream.readFloat();
+                    double y = (double)dataStream.readFloat();
+                    double z = (double)dataStream.readFloat();
+
+                    float yaw = dataStream.readFloat();
+                    float pitch = dataStream.readFloat();
+
+                    var5.setPosition(x, y, z);
+                    var5.setRotation(yaw, pitch);
+                }
+            }
+            else if (packetType == packetTypeMapData) 
+            {
+                int[] var9 = new int[136];
+                for (int i = 0; i < var9.length; i += 1)
+                {
+                    var9[i] = dataStream.readInt();
                 }
 
-                MapCoord var14 = new MapCoord(var12, (byte)var9[var13], (byte)var9[var13 + 1], (byte)var9[var13 + 2], (byte)var9[var13 + 3]);
-                var12.playersVisibleOnMap.add(var14);
+                World var10 = ModLoader.getMinecraftInstance().theWorld;
+                ItemMap var11 = Item.map;
+                MapData var12 = ItemMap.getMPMapData((short)var9[0], var10);
+                int var6 = var9[1];
+                int var7 = 2;
+
+                for (int var8 = var6 * 128; var8 < var6 * 128 + 128; ++var8)
+                {
+                    var12.colors[var8] = (byte)var9[var7];
+                    ++var7;
+                }
+
+                short var13 = 132;
+
+                if (var9[131] == 1)
+                {
+                    if (var6 == 0)
+                    {
+                        var12.playersVisibleOnMap.clear();
+                    }
+
+                    MapCoord var14 = new MapCoord(var12, (byte)var9[var13], (byte)var9[var13 + 1], (byte)var9[var13 + 2], (byte)var9[var13 + 3]);
+                    var12.playersVisibleOnMap.add(var14);
+                }
             }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -105,4 +169,16 @@ public class mod_HangableMaps extends BaseModMp
     }
 
     public void load() {}
+
+    @Override
+    public boolean clientSideRequired()
+    {
+            return true;
+    }
+
+    @Override
+    public boolean serverSideRequired()
+    {
+            return false;
+    }
 }

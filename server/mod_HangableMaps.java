@@ -1,22 +1,28 @@
 package net.minecraft.src;
 
 import java.util.List;
-import net.minecraft.server.MinecraftServer;
+import java.io.*;
 
-public class mod_HangableMaps extends BaseModMp
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.src.forge.*;
+
+public class mod_HangableMaps extends NetworkMod
 {
     public static boolean shouldCenterMapsOnPlayer = false;
     public static int hangableMapNetID = 165;
     public static mod_HangableMaps instance;
     private int nextMapUpdate;
     private int mapUpdateSegment;
+    public static final String channelName = "mod_HangMap";
+    public static final int packetTypeMapID = 1;
+    public static final int packetTypeMapData = 2;
+
 
     public mod_HangableMaps()
     {
         instance = this;
         ModLoader.registerEntityID(EntityHangableMap.class, "entityhangablemap", ModLoader.getUniqueEntityId());
-        ModLoaderMp.registerEntityTrackerEntry(EntityHangableMap.class, hangableMapNetID);
-        ModLoaderMp.registerEntityTracker(EntityHangableMap.class, 160, 5);
+        MinecraftForge.registerEntity(EntityHangableMap.class, this, hangableMapNetID, 160, 5, false);
         List var1 = CraftingManager.getInstance().getRecipeList();
         ItemStack var4;
 
@@ -46,7 +52,7 @@ public class mod_HangableMaps extends BaseModMp
         this.mapUpdateSegment = 0;
     }
 
-    public void onTickInGame(MinecraftServer var1)
+    public boolean onTickInGame(MinecraftServer var1)
     {
         ++this.nextMapUpdate;
 
@@ -72,6 +78,8 @@ public class mod_HangableMaps extends BaseModMp
                 }
             }
         }
+
+        return true;
     }
 
     public void sendMapData(MapData var1, int var2, int var3)
@@ -103,19 +111,59 @@ public class mod_HangableMaps extends BaseModMp
             var4[131] = 0;
         }
 
-        Packet230ModLoader var9 = new Packet230ModLoader();
-        var9.packetType = 2;
-        var9.dataInt = var4;
-        ModLoaderMp.sendPacketToAll(this, var9);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        DataOutputStream data = new DataOutputStream(bytes);
+
+        try
+        {
+            data.writeByte(packetTypeMapData);
+            for (int i = 0; i < var4.length; i += 1)
+            {
+                data.writeInt(var4[i]);
+            }
+        } catch (IOException e)
+        {
+            e.printStackTrace();
+            return;
+        }
+ 
+        Packet250CustomPayload packet = new Packet250CustomPayload();
+        packet.channel = channelName;
+        packet.data = bytes.toByteArray();
+        packet.length = packet.data.length;
+ 
+        ModLoader.getMinecraftServerInstance().configManager.sendPacketToAllPlayers(packet);
     }
 
     public void sendMapIDPacket(EntityHangableMap var1)
     {
-        Packet230ModLoader var2 = new Packet230ModLoader();
-        var2.packetType = 1;
-        var2.dataInt = new int[] {var1.entityId, var1.getMapId()};
-        var2.dataFloat = new float[] {(float)var1.posX, (float)var1.posY, (float)var1.posZ, var1.rotationYaw, var1.rotationPitch};
-        ModLoaderMp.sendPacketToAll(this, var2);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        DataOutputStream data = new DataOutputStream(bytes);
+
+        try
+        {
+            data.writeByte(packetTypeMapID);
+            data.writeInt(var1.entityId);
+            data.writeInt(var1.getMapId());
+            data.writeFloat((float)var1.posX);
+            data.writeFloat((float)var1.posY);
+            data.writeFloat((float)var1.posZ);
+            data.writeFloat(var1.rotationYaw);
+            data.writeFloat(var1.rotationPitch);
+        } 
+        catch(IOException e)
+        {
+            e.printStackTrace();
+            return;
+        }
+
+
+        Packet250CustomPayload packet = new Packet250CustomPayload();
+        packet.channel = channelName;
+        packet.data = bytes.toByteArray();
+        packet.length = packet.data.length;
+        
+        ModLoader.getMinecraftServerInstance().configManager.sendPacketToAllPlayers(packet);
     }
 
     public String getVersion()
@@ -124,4 +172,16 @@ public class mod_HangableMaps extends BaseModMp
     }
 
     public void load() {}
+
+    @Override
+    public boolean clientSideRequired()
+    {
+            return true;
+    }
+
+    @Override
+    public boolean serverSideRequired()
+    {
+            return false;
+    }
 }
