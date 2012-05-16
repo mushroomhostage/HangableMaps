@@ -57,11 +57,11 @@ public class ItemWorldMap extends ItemWorldMapBase
                 var11 /= 2;
             }
 
-            ++var3.field_28159_g;
+            ++var3.g;
 
             for (int var12 = var9 - var11 + 1; var12 < var9 + var11; ++var12)
             {
-                if ((var12 & 15) == (var3.field_28159_g & 15))
+                if ((var12 & 15) == (var3.g & 15))
                 {
                     int var13 = 255;
                     int var14 = 0;
@@ -243,7 +243,7 @@ public class ItemWorldMap extends ItemWorldMapBase
 
                     if (var13 <= var14)
                     {
-                        var3.func_28153_a(var12, var13, var14);
+                        var3.flagDirty(var12, var13, var14);
                     }
                 }
             }
@@ -263,7 +263,7 @@ public class ItemWorldMap extends ItemWorldMapBase
             if (var3 instanceof EntityHuman)
             {
                 EntityHuman var7 = (EntityHuman)var3;
-                var6.func_28155_a(var7, var1);
+                var6.a(var7, var1);
             }
 
             if (var5)
@@ -319,7 +319,7 @@ public class ItemWorldMap extends ItemWorldMapBase
 
     public Packet c(ItemStack var1, World var2, EntityHuman var3)
     {
-        byte[] var4 = this.getSavedMap(var1, var2).func_28154_a(var1, var2, var3);
+        byte[] var4 = this.getSavedMap(var1, var2).getUpdatePacket(var1, var2, var3);
         return var4 == null ? null : new Packet131ItemData((short)Item.MAP.id, (short)var1.getData(), var4);
     }
 
@@ -327,13 +327,13 @@ public class ItemWorldMap extends ItemWorldMapBase
     {
         WorldMap var3 = this.getSavedMap(var1, var2);
 
-        if (var3.field_28158_h.size() >= 1)
+        if (var3.h.size() >= 1)
         {
-            WorldMapHumanTracker var4 = (WorldMapHumanTracker)var3.field_28158_h.get(0);
+            WorldMapHumanTracker var4 = (WorldMapHumanTracker)var3.h.get(0);
 
             if (var4 != null)
             {
-                byte[] var5 = var4.func_28118_a(var1);
+                byte[] var5 = var4.a(var1);
 
                 if (var5 == null)
                 {

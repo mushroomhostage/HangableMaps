@@ -103,7 +103,7 @@ public class mod_HangableMaps extends NetworkMod
         {
             var4[131] = 1;
             WorldMapDecoration var7 = (WorldMapDecoration)var1.decorations.get(var3);
-            var4[var11] = var7.field_28202_a;
+            var4[var11] = var7.type;
             var4[var11 + 1] = var7.locX;
             var4[var11 + 2] = var7.locY;
             var4[var11 + 3] = var7.rotation;
