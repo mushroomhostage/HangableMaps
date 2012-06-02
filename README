@@ -1,0 +1,14 @@
+FML and CraftBukkit port of Hangable Maps
+
+Original author: ljdp for 1.1 http://www.minecraftforum.net/topic/961798-11-hangable-maps-v11-smp/
+1.2.5 update by dizal http://www.minecraftforum.net/topic/961798-11-hangable-maps-v11-smp/page__view__findpost__p__14200289
+
+IMPORTANT: This port is incomplete and buggy.
+
+install:
+- must server mod add to Minecraft jar, due to ItemWorldMapBaseEdit
+
+bugs:
+- placed map contents is cleared on relog
+- placed map doesn't update when exploring?
+
